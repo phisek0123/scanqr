@@ -79,7 +79,7 @@ input.in:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgb(37
   <div class="card">
     <div id="apiBox" class="hide">
       <label class="lb" for="api">ลิงก์ระบบเช็คของ (ลิงก์ที่ลงท้ายด้วย /exec)</label>
-      <input class="in" id="api" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off">
+      <input class="in" id="api" type="url" placeholder="เว้นว่าง = ใช้ลิงก์เริ่มต้น" autocomplete="off">
     </div>
     <label class="lb" for="pin">รหัสผ่าน</label>
     <input class="in" id="pin" type="password" autocomplete="current-password" placeholder="รหัสของคนเช็ค">
@@ -122,12 +122,12 @@ input.in:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgb(37
 <script>
 // ======================================================================
 // ตั้งค่า: วางลิงก์ /exec ของระบบเช็คของไว้ตรงนี้ (หรือเว้นว่าง แล้วกรอกในหน้าเว็บครั้งแรก)
-const API_DEFAULT = '';
+const API_DEFAULT = 'https://script.google.com/macros/s/AKfycbwwmCEK5xQYTRPcKsQ166zL42_trJ1rKMBipmmMDn3oPeET0ZaH9Ok8deIdA_t-asWzGw/exec';
 // ======================================================================
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ls={get:k=>{try{return localStorage.getItem(k)}catch{return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch{}},del:k=>{try{localStorage.removeItem(k)}catch{}}};
-let API=API_DEFAULT||ls.get('sc-api')||'';
+let API=ls.get('sc-api')||API_DEFAULT;
 let PIN=ls.get('sc-pin')||'',ME=+(ls.get('sc-me')??-1),C=[],TABS=[],SEL=[];
 try{SEL=JSON.parse(ls.get('sc-tabs')||'[]')}catch{SEL=[]}
 const IDLE=12*60*1000;let lastAct=+(ls.get('sc-act')||0);
@@ -159,7 +159,7 @@ function logout(msg){
 function drawApiBox(){$('#apiBox').classList.toggle('hide',!!API&&!$('#apiBox').dataset.edit);$('#api').value=API}
 $('#apiChange').onclick=()=>{$('#apiBox').dataset.edit='1';drawApiBox();$('#api').focus()};
 async function login(){
-  const u=$('#api').value.trim();if(!API||$('#apiBox').dataset.edit){if(!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(u)){$('#lErr').textContent='ลิงก์ระบบไม่ถูกต้อง (ต้องขึ้นต้น https://script.google.com/macros/s/ และลงท้าย /exec)';return}API=u;ls.set('sc-api',u)}
+  const u=$('#api').value.trim();if(!API||$('#apiBox').dataset.edit){if(!u||u===API_DEFAULT){API=API_DEFAULT;ls.del('sc-api')}else{if(!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(u)){$('#lErr').textContent='ลิงก์ระบบไม่ถูกต้อง (ต้องขึ้นต้น https://script.google.com/macros/s/ และลงท้าย /exec)';return}API=u;ls.set('sc-api',u)}}
   const p=$('#pin').value.trim();if(!p){$('#lErr').textContent='ใส่รหัสผ่าน';return}
   $('#lGo').disabled=true;$('#lGo').innerHTML='<span class="spin"></span> กำลังตรวจรหัส';$('#lErr').textContent='';
   PIN=p;
