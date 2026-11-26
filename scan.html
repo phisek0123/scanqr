@@ -44,7 +44,19 @@ input.in:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgb(37
 .vid span{position:absolute;left:0;right:0;bottom:8px;text-align:center;color:#fff;font-size:13px;text-shadow:0 1px 3px #000}
 .row2{display:grid;grid-template-columns:1fr auto;gap:8px}
 .row2 .btn{width:auto;padding:0 16px}
-#manual{margin-top:10px;text-transform:uppercase;letter-spacing:.5px}
+.sbox{position:relative;margin-top:10px}.sbox input{padding-right:48px}
+.sbox button{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:40px;height:40px;border:0;border-radius:50%;background:var(--soft);font-size:16px;cursor:pointer}
+input[type=search]::-webkit-search-cancel-button{display:none}
+.sf{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap}.sf span{font-size:13px;color:var(--mute)}.sf .tb{min-height:32px;padding:2px 12px;font-size:13px}.sf small{margin-left:auto;color:var(--mute);font-size:13px}
+.st{font-size:14px;color:var(--mute);font-weight:700;margin:16px 4px 8px}
+.r{background:#fff;border-radius:16px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--sh);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center}
+.r b{font-size:17px;overflow-wrap:anywhere}.r .ad{font-size:15px}.r .it{font-size:14px;color:#334155;overflow-wrap:anywhere}.r small{font-size:12.5px;color:var(--mute)}
+.r .act{grid-column:2;grid-row:1/span 4}
+.r .ok{min-width:92px;min-height:52px;border:0;border-radius:14px;font-weight:700;font-size:16px;cursor:pointer;color:var(--ink);box-shadow:inset 0 0 0 2px rgb(0 0 0/.1)}
+.r .ok:disabled{opacity:.6}
+.r .tag{display:inline-block;padding:6px 12px;border-radius:999px;font-weight:700;font-size:14px;box-shadow:inset 0 0 0 1.5px rgb(0 0 0/.1)}
+.r.done{background:#f8fafc}.r.cx{background:#fff7ed}
+mark{background:#fef08a;color:inherit;border-radius:3px;padding:0 1px}
 .msg{font-size:14px;color:var(--mute);font-weight:700;margin:18px 4px 8px}
 .scr{display:grid;grid-template-columns:2.2em minmax(0,1fr);gap:2px 10px;background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--sh);border-left:6px solid #94a3b8}
 .scr .sci{grid-row:1/span 3;font-size:26px;line-height:1.1;text-align:center}
@@ -104,13 +116,21 @@ input.in:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgb(37
     <div class="vid hide" id="vidBox"><video id="vid" playsinline muted autoplay></video><i aria-hidden="true"></i><span id="camSt">เล็งบาร์โค้ดให้อยู่ตรงเส้นแดง ห่างประมาณ 15–25 ซม.</span></div>
     <div class="row2"><button class="btn pri" id="cam" type="button">📷 เปิดกล้องสแกน</button><label class="btn" for="photo" style="width:auto;padding:0 16px">🖼 ถ่ายรูป</label></div>
     <input type="file" id="photo" accept="image/*" capture="environment" class="hide">
-    <input class="in" id="manual" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="หรือพิมพ์ / ยิงเลขพัสดุ แล้วกด Enter" aria-label="เลขพัสดุ">
+    <div class="sbox"><input class="in" id="manual" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ค้นหาเลขคำสั่งซื้อ / เลขที่อยู่ / เลขพัสดุ" aria-label="ค้นหา"><button type="button" id="sClr" class="hide" aria-label="ล้างช่องค้นหา">✕</button></div>
+    <div class="sf" role="group" aria-label="ค้นหาใน"><span>ค้นหาใน</span><button type="button" class="tb" data-f="no">เลข/ที่อยู่</button><button type="button" class="tb" data-f="item">สินค้า</button><small id="sState" aria-live="polite"></small></div>
     <p class="note" id="info"></p>
   </div>
-  <p class="msg">ผลการสแกน (ล่าสุดอยู่บน)</p>
+  <div id="sres"></div>
+  <div class="msg" style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span>ผลการสแกน (ล่าสุดอยู่บน)</span><button type="button" id="clr" class="tb" style="color:#b91c1c;border-color:#fecaca;background:#fff">🗑 ล้างผลการสแกน</button></div>
   <div id="log"><div class="empty">ยังไม่ได้สแกน</div></div>
   <div style="height:40px"></div>
 </main>
+
+<div class="modal" id="mClr" role="alertdialog" aria-modal="true" aria-labelledby="mcT"><div class="box">
+  <h2 id="mcT">ล้างผลการสแกนทั้งหมด?</h2>
+  <p>รายการในหน้านี้จะหายไป แต่สิ่งที่บันทึกลงชีทแล้วยังอยู่ครบ</p>
+  <div class="row2" style="grid-template-columns:1fr 1fr"><button class="btn" id="mcNo" type="button">ยกเลิก</button><button class="btn pri" id="mcYes" type="button" style="background:#b91c1c">ล้าง</button></div>
+</div></div>
 
 <div class="modal" id="mMulti" role="alertdialog" aria-modal="true" aria-labelledby="mmT"><div class="box">
   <h2 id="mmT">เลขพัสดุนี้ตรงกับ <span id="mmN"></span> รายการ</h2>
@@ -188,7 +208,7 @@ async function loadData(force){
 }
 function drawTabs(){$('#tabs').innerHTML='<b>แท็บ</b>'+TABS.map(t=>`<button class="tb" type="button" data-t="${esc(t.id)}" aria-pressed="${SEL.includes(t.id)}">${esc(t.name)}</button>`).join('')}
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('.tb');if(!b)return;const id=b.dataset.t;
-  if(SEL.includes(id)){if(SEL.length===1)return;SEL=SEL.filter(x=>x!==id)}else SEL.push(id);ls.set('sc-tabs',JSON.stringify(SEL));drawTabs();$('#info').textContent='กำลังโหลด…';loadData(true)});
+  if(SEL.includes(id)){if(SEL.length===1)return;SEL=SEL.filter(x=>x!==id)}else SEL.push(id);ls.set('sc-tabs',JSON.stringify(SEL));drawTabs();$('#info').textContent='กำลังโหลด…';loadData(true);if($('#manual').value.trim())doSearch()});
 function openScan(){show('vScan');drawTabs();$('#info').textContent='กำลังโหลดเลขพัสดุ…';loadData(true)}
 setInterval(()=>{if(PIN&&ME>=0&&!document.hidden)loadData(false)},60000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&PIN&&ME>=0)loadData(false)});
@@ -245,7 +265,64 @@ function multi(code,hits){
   $('#mMulti').classList.add('on');
 }
 $('#mmOk').onclick=()=>$('#mMulti').classList.remove('on');
-$('#manual').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const v=e.target.value;e.target.value='';delete last[norm(v)];push(v)}});
+$('#clr').onclick=()=>{if(!$('#log .scr'))return;$('#mClr').classList.add('on')};
+$('#mcNo').onclick=()=>$('#mClr').classList.remove('on');
+$('#mcYes').onclick=()=>{$('#mClr').classList.remove('on');$('#log').innerHTML='<div class="empty">ยังไม่ได้สแกน</div>';last={}};
+// ---------- ค้นหาแบบหน้าเช็คของ ----------
+let SF=ls.get('sc-sf')==='item'?'item':'no',SR=[],SQ='',sSeq=0,sTimer=0,saving=false;
+const PH={no:'ค้นหาเลขคำสั่งซื้อ / เลขที่อยู่ / เลขพัสดุ',item:'พิมพ์ชื่อสินค้า เช่น ชูรส'};
+function drawSF(){document.querySelectorAll('.sf [data-f]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.f===SF));$('#manual').placeholder=PH[SF]}
+drawSF();
+document.querySelector('.sf').addEventListener('click',e=>{const b=e.target.closest('[data-f]');if(!b||b.dataset.f===SF)return;SF=b.dataset.f;ls.set('sc-sf',SF);drawSF();if($('#manual').value.trim())doSearch();$('#manual').focus()});
+function clearSearch(){sSeq++;$('#manual').value='';SR=[];SQ='';$('#sState').textContent='';$('#sClr').classList.add('hide');drawRes()}
+$('#sClr').onclick=()=>{clearSearch();$('#manual').focus()};
+$('#manual').addEventListener('input',()=>{touch();$('#sClr').classList.toggle('hide',!$('#manual').value);clearTimeout(sTimer);sTimer=setTimeout(doSearch,350)});
+$('#manual').addEventListener('keydown',e=>{if(e.key!=='Enter')return;e.preventDefault();clearTimeout(sTimer);
+  const v=e.target.value,k=norm(v);
+  if(SF==='no'&&k.length>=6&&IDX[k]){clearSearch();delete last[k];push(v);return}   // เลขพัสดุที่ตรง → บันทึกเหมือนสแกน
+  doSearch()});
+async function doSearch(){
+  const q=$('#manual').value.trim();
+  if(!q){clearSearch();return}
+  if(q.length<2){$('#sState').textContent='พิมพ์อย่างน้อย 2 ตัว';return}
+  const my=++sSeq;$('#sState').innerHTML='<span class="spin"></span> กำลังค้น…';
+  // เลขพัสดุ: หาในข้อมูลที่โหลดไว้ (มาจากอีเมลส่งสำเร็จ)
+  const k=norm(q),tkHits=SF==='no'&&k.length>=4?Object.keys(IDX).filter(t=>t.includes(k)).slice(0,20).flatMap(t=>IDX[t]):[];
+  try{
+    const d=await api('search',{q,field:SF});if(my!==sSeq)return;
+    const seen={},rows=[];
+    (d.rows||[]).forEach(r=>{seen[r.tab+':'+r.row]=1;rows.push(r)});
+    tkHits.forEach(a=>{if(!seen[a[1]+':'+a[2]]){seen[a[1]+':'+a[2]]=1;rows.push({tab:a[1],tabName:(TABS.find(t=>t.id===a[1])||{}).name||'',row:a[2],no:a[3],addr:a[4],item:a[5],date:a[6],ck:a[7],tk:a[0]})}});
+    rows.sort((a,b)=>(a.ck===-1?0:1)-(b.ck===-1?0:1));
+    SR=rows;SQ=q;$('#sState').textContent='';drawRes();
+  }catch(e){if(my===sSeq){$('#sState').textContent='ค้นไม่สำเร็จ: '+e.message}}
+}
+function hl(t,q){t=String(t==null?'':t);const i=q?t.toLowerCase().indexOf(q.toLowerCase()):-1;return i<0?esc(t):esc(t.slice(0,i))+'<mark>'+esc(t.slice(i,i+q.length))+'</mark>'+esc(t.slice(i+q.length))}
+function drawRes(){
+  const box=$('#sres');
+  if(!SQ){box.innerHTML='';return}
+  const fNo=SF==='no',me=C[ME]||{};
+  box.innerHTML=`<p class="st">ผลค้นหา${fNo?'':' (ชื่อสินค้า)'} “${esc(SQ)}” (${SR.length}${SR.length>=60?'+':''})</p>`+(SR.length?SR.map((r,i)=>{
+    let act;
+    if(r.ck===-1)act=`<button type="button" class="ok" data-i="${i}" style="background:${esc(me.color||'#fff')}"${saving?' disabled':''}>ได้รับ</button>`;
+    else if(r.ck===-2)act='<span class="tag" style="background:#fed7aa">ยกเลิกส่ง</span>';
+    else act=`<span class="tag" style="background:${esc(r.ck===99?'#e2e8f0':(C[r.ck]||{}).color||'#e2e8f0')}">${esc(ckName(r.ck)||'ได้รับแล้ว')}</span>`;
+    return `<div class="r${r.ck===-1?'':r.ck===-2?' cx':' done'}"><b>${fNo?hl(r.no,SQ):esc(r.no)}</b><span class="ad">ที่อยู่ ${fNo?hl(r.addr||'-',SQ):esc(r.addr||'-')}</span><span class="it">${fNo?esc(r.item||''):hl(r.item||'',SQ)}</span><small>${esc(r.date||'')}${r.tabName?' · แท็บ '+esc(r.tabName):''}${r.tk?' · พัสดุ '+hl(r.tk,norm(SQ)):''}</small><div class="act">${act}</div></div>`;
+  }).join(''):'<div class="empty">ไม่พบ ลองพิมพ์น้อยลง หรือเปลี่ยนแท็บ</div>');
+}
+$('#sres').addEventListener('click',async e=>{
+  const b=e.target.closest('.ok[data-i]');if(!b||saving)return;const r=SR[+b.dataset.i];if(!r)return;
+  saving=true;b.innerHTML='<span class="spin"></span>';drawResBtns(true);touch();
+  const info=`${r.no} · ที่อยู่ ${r.addr||'-'} · ${r.item||''}`,q=SQ;
+  try{
+    const d=await api('mark',{tab:r.tab,row:r.row,no:r.no,me:ME,q});
+    if(d.ok){logRow('ok','✓',r.no,info,'ได้รับแล้ว · '+ckName(ME)+' · ค้นหา “'+q+'”');feedback('ok');patchIdx(r,d.ck);saving=false;clearSearch();$('#manual').focus();return}
+    r.ck=d.ck;patchIdx(r,d.ck);feedback('warn');logRow('wr','!',r.no,info,d.ck===-2?'ถูกยกเลิกส่งแล้ว':'ได้รับไปแล้ว ('+ckName(d.ck)+')');
+  }catch(err){feedback('fail');$('#sState').textContent='บันทึกไม่สำเร็จ: '+err.message}
+  saving=false;drawRes();
+});
+function drawResBtns(dis){document.querySelectorAll('#sres .ok').forEach(x=>x.disabled=dis)}
+function patchIdx(r,ck){ROWS.forEach(a=>{if(a[1]===r.tab&&a[2]===r.row)a[7]=ck})}
 
 // ---------- กล้องสด ----------
 let stream=null,timer=0,zx=null;
