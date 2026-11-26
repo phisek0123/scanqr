@@ -41,6 +41,8 @@ input.in:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgb(37
 .vid{position:relative;border-radius:16px;overflow:hidden;background:#000;aspect-ratio:4/3;max-height:52vh;margin-bottom:10px}
 .vid video{width:100%;height:100%;object-fit:cover;display:block}
 .vid i{position:absolute;left:8%;right:8%;top:50%;height:2px;background:#ef4444;box-shadow:0 0 10px #ef4444}
+.vid b{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgb(15 23 42/.55);color:#fff;font-size:22px;font-weight:700}
+.vid.wait b{display:flex}.vid.wait i{background:#94a3b8;box-shadow:none}
 .vid span{position:absolute;left:0;right:0;bottom:8px;text-align:center;color:#fff;font-size:13px;text-shadow:0 1px 3px #000}
 .row2{display:grid;grid-template-columns:1fr auto;gap:8px}
 .row2 .btn{width:auto;padding:0 16px}
@@ -113,7 +115,7 @@ mark{background:#fef08a;color:inherit;border-radius:3px;padding:0 1px}
 <main class="wrap hide" id="vScan">
   <div class="card">
     <div class="tabs" id="tabs"></div>
-    <div class="vid hide" id="vidBox"><video id="vid" playsinline muted autoplay></video><i aria-hidden="true"></i><span id="camSt">เล็งบาร์โค้ดให้อยู่ตรงเส้นแดง ห่างประมาณ 15–25 ซม.</span></div>
+    <div class="vid hide" id="vidBox"><video id="vid" playsinline muted autoplay></video><i aria-hidden="true"></i><b id="camWait"></b><span id="camSt">เล็งบาร์โค้ดให้อยู่ตรงเส้นแดง ห่างประมาณ 15–25 ซม.</span></div>
     <div class="row2"><button class="btn pri" id="cam" type="button">📷 เปิดกล้องสแกน</button><label class="btn" for="photo" style="width:auto;padding:0 16px">🖼 ถ่ายรูป</label></div>
     <input type="file" id="photo" accept="image/*" capture="environment" class="hide">
     <div class="sbox"><input class="in" id="manual" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ค้นหาเลขคำสั่งซื้อ / เลขที่อยู่ / เลขพัสดุ" aria-label="ค้นหา"><button type="button" id="sClr" class="hide" aria-label="ล้างช่องค้นหา">✕</button></div>
@@ -233,10 +235,23 @@ function logRow(cls,icon,title,line,sub,id){
   const ex=id&&document.getElementById(id);if(ex)ex.outerHTML=html;else box.insertAdjacentHTML('afterbegin',html);
   const all=box.querySelectorAll('.scr');if(all.length>80)all[all.length-1].remove();
 }
-let matchAt=0;
-function push(raw,src){const code=norm(raw);if(code.length<6)return;const t=Date.now();if(last[code]&&t-last[code]<(src==='cam'?6000:4000))return;last[code]=t;
+let matchAt=0,pauseUntil=0,pauseT=0;
+const CAM_GAP=2000;   // หลังสแกนได้ 1 ชิ้น พักกล้อง 2 วินาที กันไปติดบาร์โค้ดชิ้นอื่น
+function camPause(){
+  pauseUntil=Date.now()+CAM_GAP;clearInterval(pauseT);const box=$('#vidBox');box.classList.add('wait');
+  const draw=()=>{const ms=pauseUntil-Date.now();if(ms<=0||!stream){clearInterval(pauseT);box.classList.remove('wait');$('#camSt').textContent='พร้อมสแกนชิ้นต่อไป';return}$('#camWait').textContent='สแกนต่อได้ใน '+Math.ceil(ms/1000)+' วิ'};
+  draw();pauseT=setInterval(draw,200);
+}
+let seen1={};   // กันอ่านผิด: ต้องอ่านได้เลขเดิม 2 ครั้งติดกันภายใน 1.2 วิ ก่อนนับว่าสแกนได้
+function push(raw,src){const code=norm(raw);if(code.length<6)return;const t=Date.now();
+  if(src==='cam'){
+    if(t<pauseUntil)return;
+    if(!(seen1[code]&&t-seen1[code]<1200)){seen1={[code]:t};return}
+  }
+  if(last[code]&&t-last[code]<(src==='cam'?6000:4000))return;last[code]=t;
   if(src==='cam'){$('#camSt').textContent='อ่านได้: '+code;
-    if(!IDX[code]){const at=t;setTimeout(()=>{if(matchAt<at){Q.push(code);run()}},1500);return}}   // ฉลากมีหลายบาร์โค้ด: ถ้าอีกอันตรงก็ไม่ต้องแจ้งแดง
+    if(!IDX[code]){const at=t;setTimeout(()=>{if(matchAt<at&&Date.now()>=pauseUntil){Q.push(code);run();camPause()}},1500);return}   // ฉลากมีหลายบาร์โค้ด: ถ้าอีกอันตรงก็ไม่ต้องแจ้งแดง
+    camPause()}
   if(IDX[code])matchAt=t;Q.push(code);run()}
 async function run(){
   if(busy)return;busy=true;
@@ -373,7 +388,7 @@ function zxFrame(Z,v){
     push(ZR.decodeWithState(new Z.BinaryBitmap(new Bin(new Z.HTMLCanvasElementLuminanceSource(cv)))).getText(),'cam');
   }catch(e){}
 }
-function camStop(){clearTimeout(timer);ZR=null;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$('#vidBox').classList.add('hide');$('#cam').textContent='📷 เปิดกล้องสแกน'}
+function camStop(){clearTimeout(timer);clearInterval(pauseT);pauseUntil=0;$('#vidBox').classList.remove('wait');ZR=null;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$('#vidBox').classList.add('hide');$('#cam').textContent='📷 เปิดกล้องสแกน'}
 // ---------- ถ่ายรูป (สำรอง) ----------
 $('#photo').onchange=async e=>{
   const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;
