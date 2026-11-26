@@ -101,8 +101,9 @@ input.in:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgb(37
 <main class="wrap hide" id="vScan">
   <div class="card">
     <div class="tabs" id="tabs"></div>
-    <div class="vid hide" id="vidBox"><video id="vid" playsinline muted autoplay></video><i aria-hidden="true"></i><span>เล็งบาร์โค้ดให้อยู่ตรงเส้นแดง</span></div>
-    <button class="btn pri" id="cam" type="button">📷 เปิดกล้องสแกน</button>
+    <div class="vid hide" id="vidBox"><video id="vid" playsinline muted autoplay></video><i aria-hidden="true"></i><span id="camSt">เล็งบาร์โค้ดให้อยู่ตรงเส้นแดง ห่างประมาณ 15–25 ซม.</span></div>
+    <div class="row2"><button class="btn pri" id="cam" type="button">📷 เปิดกล้องสแกน</button><label class="btn" for="photo" style="width:auto;padding:0 16px">🖼 ถ่ายรูป</label></div>
+    <input type="file" id="photo" accept="image/*" capture="environment" class="hide">
     <input class="in" id="manual" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="หรือพิมพ์ / ยิงเลขพัสดุ แล้วกด Enter" aria-label="เลขพัสดุ">
     <p class="note" id="info"></p>
   </div>
@@ -212,7 +213,11 @@ function logRow(cls,icon,title,line,sub,id){
   const ex=id&&document.getElementById(id);if(ex)ex.outerHTML=html;else box.insertAdjacentHTML('afterbegin',html);
   const all=box.querySelectorAll('.scr');if(all.length>80)all[all.length-1].remove();
 }
-function push(raw){const code=norm(raw);if(code.length<6)return;const t=Date.now();if(last[code]&&t-last[code]<4000)return;last[code]=t;Q.push(code);run()}
+let matchAt=0;
+function push(raw,src){const code=norm(raw);if(code.length<6)return;const t=Date.now();if(last[code]&&t-last[code]<(src==='cam'?6000:4000))return;last[code]=t;
+  if(src==='cam'){$('#camSt').textContent='อ่านได้: '+code;
+    if(!IDX[code]){const at=t;setTimeout(()=>{if(matchAt<at){Q.push(code);run()}},1500);return}}   // ฉลากมีหลายบาร์โค้ด: ถ้าอีกอันตรงก็ไม่ต้องแจ้งแดง
+  if(IDX[code])matchAt=t;Q.push(code);run()}
 async function run(){
   if(busy)return;busy=true;
   while(Q.length){
@@ -243,30 +248,85 @@ $('#mmOk').onclick=()=>$('#mMulti').classList.remove('on');
 $('#manual').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const v=e.target.value;e.target.value='';delete last[norm(v)];push(v)}});
 
 // ---------- กล้องสด ----------
-let stream=null,timer=0,reader=null,zx=null;
+let stream=null,timer=0,zx=null;
 function loadZX(){return zx||(zx=new Promise((ok,no)=>{if(window.ZXing)return ok(window.ZXing);const s=document.createElement('script');s.src='https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js';s.onload=()=>ok(window.ZXing);s.onerror=()=>{zx=null;no(new Error('โหลดตัวอ่านบาร์โค้ดไม่สำเร็จ'))};document.head.appendChild(s)}))}
+let cv=null,cx=null,ZR=null,frame=0;
 async function camStart(){
   unlockAudio();
   const v=$('#vid');
   try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false})}
   catch(e){$('#info').textContent='เปิดกล้องไม่ได้: '+(e.name==='NotAllowedError'?'ยังไม่ได้อนุญาตกล้อง (ตั้งค่า → Safari/Chrome → กล้อง → อนุญาต)':e.message);feedback('fail');return}
+  try{const tr=stream.getVideoTracks()[0],cap=tr.getCapabilities?tr.getCapabilities():{};if(cap.focusMode&&cap.focusMode.includes('continuous'))await tr.applyConstraints({advanced:[{focusMode:'continuous'}]})}catch{}
   $('#vidBox').classList.remove('hide');v.srcObject=stream;await v.play().catch(()=>{});$('#cam').textContent='■ ปิดกล้อง';
+  $('#camSt').textContent='เล็งบาร์โค้ดให้อยู่ตรงเส้นแดง ห่างประมาณ 15–25 ซม.';
   let useNative=false;
   if('BarcodeDetector' in window){try{const f=await BarcodeDetector.getSupportedFormats();useNative=f.includes('code_128')}catch{}}
   if(useNative){
     const det=new BarcodeDetector({formats:['code_128','qr_code','code_39','code_93','itf','ean_13','data_matrix','pdf417']});
-    const tick=async()=>{if(!stream)return;try{(await det.detect(v)).forEach(x=>push(x.rawValue))}catch{}timer=setTimeout(tick,200)};tick();
+    const tick=async()=>{if(!stream)return;try{(await det.detect(v)).forEach(x=>push(x.rawValue,'cam'))}catch{}timer=setTimeout(tick,150)};tick();
   }else{
     try{
       const Z=await loadZX();if(!stream)return;
       const h=new Map();h.set(Z.DecodeHintType.TRY_HARDER,true);
-      h.set(Z.DecodeHintType.POSSIBLE_FORMATS,[Z.BarcodeFormat.CODE_128,Z.BarcodeFormat.QR_CODE,Z.BarcodeFormat.CODE_39,Z.BarcodeFormat.CODE_93,Z.BarcodeFormat.ITF,Z.BarcodeFormat.EAN_13]);
-      reader=new Z.BrowserMultiFormatReader(h,150);
-      reader.decodeFromStream(stream,v,r=>{if(r)push(r.getText())});
+      h.set(Z.DecodeHintType.POSSIBLE_FORMATS,[Z.BarcodeFormat.CODE_128,Z.BarcodeFormat.CODE_39,Z.BarcodeFormat.CODE_93,Z.BarcodeFormat.ITF,Z.BarcodeFormat.EAN_13,Z.BarcodeFormat.QR_CODE]);
+      ZR=new Z.MultiFormatReader();ZR.setHints(h);
+      cv=cv||document.createElement('canvas');cx=cx||cv.getContext('2d',{willReadFrequently:true});
+      const tick=()=>{if(!stream)return;zxFrame(Z,v);timer=setTimeout(tick,40)};tick();
     }catch(e){$('#info').textContent=e.message+' → พิมพ์เลขแทน';}
   }
 }
-function camStop(){clearTimeout(timer);try{reader&&reader.reset()}catch{}reader=null;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$('#vidBox').classList.add('hide');$('#cam').textContent='📷 เปิดกล้องสแกน'}
+// อ่านทีละเฟรม สลับหลายแบบ: แถบรอบเส้นแดง (2 วิธีแปลงขาวดำ), พื้นที่กลางจอ, และแนวตั้ง (กรณีถือกล่องเอียง)
+function zxFrame(Z,v){
+  const W=v.videoWidth,H=v.videoHeight;if(!W||!H)return;
+  // ส่วนที่เห็นบนจอ (วิดีโอถูกครอปให้พอดีกรอบ 4:3)
+  const box=v.getBoundingClientRect(),ar=box.width/box.height;let vw=W,vh=H;if(W/H>ar)vw=H*ar;else vh=W/ar;
+  const ox=(W-vw)/2,oy=(H-vh)/2,m=frame++%5;
+  let sx,sy,sw,sh,rot=0;
+  if(m<2){sw=vw*.92;sh=vh*.28;sx=ox+(vw-sw)/2;sy=oy+(vh-sh)/2}
+  else if(m===2){sw=vw*.92;sh=vh*.6;sx=ox+(vw-sw)/2;sy=oy+(vh-sh)/2}
+  else if(m===3){sw=vw;sh=vh*.14;sx=ox;sy=oy+(vh-sh)/2}
+  else{sw=vw*.3;sh=vh*.95;sx=ox+(vw-sw)/2;sy=oy+(vh-sh)/2;rot=1}
+  const sc=Math.min(1,(m===3?1600:1100)/Math.max(sw,sh)),dw=Math.round(sw*sc),dh=Math.round(sh*sc);
+  cv.width=rot?dh:dw;cv.height=rot?dw:dh;cx.save();
+  if(rot){cx.translate(cv.width/2,cv.height/2);cx.rotate(Math.PI/2);cx.drawImage(v,sx,sy,sw,sh,-dw/2,-dh/2,dw,dh)}
+  else cx.drawImage(v,sx,sy,sw,sh,0,0,dw,dh);
+  cx.restore();
+  try{
+    const Bin=m===1||m===3?Z.GlobalHistogramBinarizer:Z.HybridBinarizer;
+    push(ZR.decodeWithState(new Z.BinaryBitmap(new Bin(new Z.HTMLCanvasElementLuminanceSource(cv)))).getText(),'cam');
+  }catch(e){}
+}
+function camStop(){clearTimeout(timer);ZR=null;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$('#vidBox').classList.add('hide');$('#cam').textContent='📷 เปิดกล้องสแกน'}
+// ---------- ถ่ายรูป (สำรอง) ----------
+$('#photo').onchange=async e=>{
+  const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;
+  $('#info').textContent='กำลังอ่านบาร์โค้ดจากรูป…';
+  try{
+    let list=[];
+    if('BarcodeDetector' in window){try{list=(await new BarcodeDetector().detect(await createImageBitmap(f))).map(x=>x.rawValue)}catch{}}
+    if(!list.length)list=await decodePhoto(f);
+    if(!list.length){$('#info').textContent='อ่านบาร์โค้ดในรูปไม่ได้ ลองถ่ายใกล้ขึ้น ให้บาร์โค้ดเต็มกรอบและไม่เบลอ';feedback('fail');return}
+    const hit=list.filter(t=>IDX[norm(t)]);(hit.length?hit:list.slice(0,1)).forEach(t=>{delete last[norm(t)];push(t)});
+    $('#info').textContent='อ่านจากรูปได้ '+list.length+' บาร์โค้ด';
+  }catch(err){$('#info').textContent='อ่านรูปไม่สำเร็จ: '+err.message;feedback('fail')}
+};
+async function decodePhoto(f){
+  const Z=await loadZX(),bmp=await createImageBitmap(f),W=bmp.width,H=bmp.height;
+  const h=new Map();h.set(Z.DecodeHintType.TRY_HARDER,true);
+  h.set(Z.DecodeHintType.POSSIBLE_FORMATS,[Z.BarcodeFormat.CODE_128,Z.BarcodeFormat.QR_CODE,Z.BarcodeFormat.CODE_39,Z.BarcodeFormat.CODE_93,Z.BarcodeFormat.ITF,Z.BarcodeFormat.EAN_13]);
+  const r=new Z.MultiFormatReader();r.setHints(h);
+  const c=document.createElement('canvas'),g=c.getContext('2d',{willReadFrequently:true}),found=[],seen={};
+  for(const [x0,y0,cw,ch] of [[0,0,1,1],[.15,.15,.7,.7],[0,0,1,.5],[0,.25,1,.5],[0,.5,1,.5]])for(const sz of [1400,1000,2000,700])for(const rot of [0,90]){
+    const sw=W*cw,sh=H*ch,sc=Math.min(1,sz/Math.max(sw,sh)),dw=Math.round(sw*sc),dh=Math.round(sh*sc);
+    c.width=rot?dh:dw;c.height=rot?dw:dh;g.save();
+    if(rot){g.translate(c.width/2,c.height/2);g.rotate(Math.PI/2);g.drawImage(bmp,W*x0,H*y0,sw,sh,-dw/2,-dh/2,dw,dh)}else g.drawImage(bmp,W*x0,H*y0,sw,sh,0,0,dw,dh);
+    g.restore();
+    for(const Bin of [Z.HybridBinarizer,Z.GlobalHistogramBinarizer]){try{const t=r.decodeWithState(new Z.BinaryBitmap(new Bin(new Z.HTMLCanvasElementLuminanceSource(c)))).getText(),k=norm(t);if(k&&!seen[k]){seen[k]=1;found.push(t);if(IDX[k])return [t]}}catch{}}
+    await new Promise(z=>setTimeout(z,0));
+    if(found.length>=4)return found;
+  }
+  return found;
+}
 $('#cam').onclick=()=>stream?camStop():camStart();
 document.addEventListener('visibilitychange',()=>{if(document.hidden)camStop()});
 
